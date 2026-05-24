@@ -1,125 +1,37 @@
-#include "core/WindowAdapter.hpp"
-#include "editor/Editor.hpp"
-#include "graphics/Map.hpp"
-#include "graphics/Raycaster.hpp"
-#include "ecs/Entity.hpp"
-#include "core/AssetManager.hpp"
+#include "core/Engine.hpp"
+#include "states/PlayState.hpp"
 #include <iostream>
-#include <cmath>
-#include <algorithm>
 
+/**
+ * @file main.cpp
+ * @brief Punto di ingresso principale del Motore Grafico Horror 2.5D.
+ * 
+ * Il motore segue un'architettura modulare:
+ * - EngineInstance: Coordina i sistemi core (Rendering, Input, Stati).
+ * - StateManager: Gestisce il ciclo di vita delle diverse fasi di gioco.
+ * - Renderer: Astrae le chiamate grafiche per la modularità.
+ */
 int main(int argc, char* argv[]) {
-    using namespace Engine;
+    using namespace Engine::Core;
+    using namespace Engine::States;
 
-    Core::WindowAdapter window("Horror 2.5D Engine - Master Tool", 1280, 720);
-    if (!window.init()) return -1;
-
-    // Sistemi Core
-    Graphics::Map map(24, 24);
-    map.generateDummy();
-    ECS::EntityManager entities;
-    Graphics::Raycaster raycaster(window);
-    Graphics::Player player;
-
-    Editor::Editor editor(window, map, entities);
-    editor.init();
-
-    bool running = true;
-    SDL_Event event;
-    uint32_t lastTime = SDL_GetTicks();
+    // 1. Inizializzazione dell'istanza del motore
+    EngineInstance engine("Horror 2.5D Engine - Master Tool", 1280, 720);
     
-    bool cursorCaptured = true;
-    const int TARGET_FPS = 60;
-    const int FRAME_DELAY = 1000 / TARGET_FPS;
-
-    while (running) {
-        uint32_t frameStart = SDL_GetTicks();
-        uint32_t currentTime = SDL_GetTicks();
-        float deltaTime = (currentTime - lastTime) / 1000.0f;
-        
-        // Cap deltaTime per evitare salti enormi se il PC rallenta
-        deltaTime = std::min(deltaTime, 0.05f);
-        lastTime = currentTime;
-
-        while (SDL_PollEvent(&event)) {
-            editor.handleEvent(event);
-            if (event.type == SDL_QUIT) running = false;
-            
-            // Toggle Cattura Mouse (ESC)
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
-                cursorCaptured = !cursorCaptured;
-                SDL_SetRelativeMouseMode(cursorCaptured ? SDL_TRUE : SDL_FALSE);
-                // Se sblocchiamo il mouse, mostriamo l'editor se era nascosto
-                if (!cursorCaptured) editor.setVisible(true);
-            }
-
-            // Mouse Look
-            if (cursorCaptured && event.type == SDL_MOUSEMOTION) {
-                float mouseX = (float)event.motion.xrel;
-                float rotSpeed = mouseX * 0.002f;
-
-                float oldDirX = player.dirX;
-                player.dirX = player.dirX * std::cos(-rotSpeed) - player.dirY * std::sin(-rotSpeed);
-                player.dirY = oldDirX * std::sin(-rotSpeed) + player.dirY * std::cos(-rotSpeed);
-                
-                float oldPlaneX = player.planeX;
-                player.planeX = player.planeX * std::cos(-rotSpeed) - player.planeY * std::sin(-rotSpeed);
-                player.planeY = oldPlaneX * std::sin(-rotSpeed) + player.planeY * std::cos(-rotSpeed);
-            }
-        }
-
-        // Movimento (solo se il mouse è catturato, ovvero siamo in "Play Mode")
-        if (cursorCaptured) {
-            const uint8_t* state = SDL_GetKeyboardState(NULL);
-            float moveSpeed = 4.0f * deltaTime; // Rallentato un pochino
-            
-            if (state[SDL_SCANCODE_W]) {
-                if (map.getTile(int(player.x + player.dirX * moveSpeed), int(player.y)) == 0) player.x += player.dirX * moveSpeed;
-                if (map.getTile(int(player.x), int(player.y + player.dirY * moveSpeed)) == 0) player.y += player.dirY * moveSpeed;
-            }
-            if (state[SDL_SCANCODE_S]) {
-                if (map.getTile(int(player.x - player.dirX * moveSpeed), int(player.y)) == 0) player.x -= player.dirX * moveSpeed;
-                if (map.getTile(int(player.x), int(player.y - player.dirY * moveSpeed)) == 0) player.y -= player.dirY * moveSpeed;
-            }
-            if (state[SDL_SCANCODE_A]) {
-                float strafeDirX = -player.dirY;
-                float strafeDirY = player.dirX;
-                if (map.getTile(int(player.x + strafeDirX * moveSpeed), int(player.y)) == 0) player.x += strafeDirX * moveSpeed;
-                if (map.getTile(int(player.x), int(player.y + strafeDirY * moveSpeed)) == 0) player.y += strafeDirY * moveSpeed;
-            }
-            if (state[SDL_SCANCODE_D]) {
-                float strafeDirX = player.dirY;
-                float strafeDirY = -player.dirX;
-                if (map.getTile(int(player.x + strafeDirX * moveSpeed), int(player.y)) == 0) player.x += strafeDirX * moveSpeed;
-                if (map.getTile(int(player.x), int(player.y + strafeDirY * moveSpeed)) == 0) player.y += strafeDirY * moveSpeed;
-            }
-        }
-
-        // Rendering
-        window.clear(
-            (uint8_t)(map.atmosphereColor[0] * 255),
-            (uint8_t)(map.atmosphereColor[1] * 255),
-            (uint8_t)(map.atmosphereColor[2] * 255)
-        );
-
-        raycaster.render(map, player);
-        
-        // Render Editor (solo se mouse sbloccato o forzato)
-        if (!cursorCaptured || editor.isVisible()) {
-            editor.render();
-        }
-
-        window.present();
-
-        // Limitatore FPS (Rallenta il loop se troppo veloce)
-        uint32_t frameTime = SDL_GetTicks() - frameStart;
-        if (FRAME_DELAY > frameTime) {
-            SDL_Delay(FRAME_DELAY - frameTime);
-        }
+    if (!engine.init()) {
+        std::cerr << "Errore critico: Impossibile inizializzare il motore." << std::endl;
+        return -1;
     }
 
-    Core::AssetManager::getInstance().cleanup();
-    editor.cleanup();
-    window.cleanup();
+    // 2. Creazione e attivazione dello stato iniziale (PlayState)
+    // Usiamo unique_ptr per una gestione sicura della memoria (RAII).
+    auto playState = std::make_unique<PlayState>(engine);
+    engine.getStates().pushState(std::move(playState));
+
+    // 3. Avvio del Game Loop principale
+    // Il controllo passa al motore, che gestirà update e render in modo modulare.
+    std::cout << "Motore avviato correttamente. Benvenuto nel vuoto." << std::endl;
+    engine.run();
+
     return 0;
 }

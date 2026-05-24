@@ -44,6 +44,7 @@ add_executable(VIDEOGIOCO
     src/graphics/Map.cpp
     src/graphics/Raycaster.cpp
     src/editor/Editor.cpp
+    src/states/PlayState.cpp
 )
 
 # Includi le cartelle necessarie
@@ -56,8 +57,8 @@ target_include_directories(VIDEOGIOCO PRIVATE
 # Collega SDL2
 target_link_libraries(VIDEOGIOCO PRIVATE SDL2::SDL2main SDL2::SDL2)
 
-# Su Windows copia la DLL di SDL2
 if(WIN32)
+    target_link_libraries(VIDEOGIOCO PRIVATE psapi)
     add_custom_command(TARGET VIDEOGIOCO POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:SDL2::SDL2>

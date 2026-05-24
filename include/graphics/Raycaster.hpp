@@ -1,31 +1,32 @@
 #pragma once
-#include "core/WindowAdapter.hpp"
+#include "graphics/Renderer.hpp"
 #include "graphics/Map.hpp"
+#include "ecs/Entity.hpp"
 #include <cmath>
+#include <vector>
 
 namespace Engine::Graphics {
 
     struct Player {
         float x = 12.0f;
         float y = 12.0f;
+        float z = 0.5f; 
         float dirX = -1.0f;
         float dirY = 0.0f;
         float planeX = 0.0f;
-        float planeY = 0.66f; // FOV 66 gradi stile Doom
+        float planeY = 0.66f; 
+        float pitch = 0.0f;   
     };
 
     /**
-     * @brief Motore di Raycasting per il rendering 2.5D.
-     * Super ottimizzato per C++.
+     * @brief Motore di Raycasting modulare con supporto sprite.
      */
     class Raycaster {
     public:
-        Raycaster(Core::WindowAdapter& window);
-        
-        void render(const Map& map, const Player& player);
+        void render(Renderer& renderer, const Map& map, const Player& player, ECS::EntityManager& entities);
 
     private:
-        Core::WindowAdapter& m_window;
+        std::vector<float> m_zBuffer;
     };
 
 }

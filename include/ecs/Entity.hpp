@@ -15,17 +15,17 @@ namespace Engine::ECS {
      * @brief Entità del gioco (Pattern Prototype/Factory).
      */
     struct Entity {
-        float x, y;
+        float x, y, z;
         EntityType type;
         std::string textureName;
         bool active = true;
-        std::string interactionText; // Per i "segreti raccapriccianti"
+        std::string interactionText; 
     };
 
     class EntityManager {
     public:
-        void addEntity(float x, float y, EntityType type, const std::string& tex) {
-            m_entities.push_back({x, y, type, tex, true, ""});
+        void addEntity(float x, float y, float z, EntityType type, const std::string& tex) {
+            m_entities.push_back({x, y, z, type, tex, true, ""});
         }
 
         std::vector<Entity>& getEntities() { return m_entities; }
